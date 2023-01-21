@@ -20,6 +20,7 @@ KERNEL_SRC := $(TOP)/kernel/android13-5.15-lts
 KERNEL_OUT := $(TARGET_OUT_INTERMEDIATES)/KERNEL_OBJ
 KERNEL_CONFIG := $(KERNEL_OUT)/.config
 KERNEL_BINARY := $(KERNEL_OUT)/arch/$(TARGET_ARCH)/boot/Image
+KERNEL_DTB_OUT := $(KERNEL_OUT)/arch/$(TARGET_ARCH)/boot/dts/$(KERNEL_DTB)
 
 KERNEL_BASE_CONFIG := $(TOP)/kernel/configs/android-$(KERNEL_VERSION)/android-base.config
 
@@ -35,18 +36,30 @@ $(KERNEL_OUT):
 $(KERNEL_CONFIG): $(KERNEL_SRC)/Makefile $(KERNEL_CONFIG_FRAGMENTS) $(KERNEL_OUT)
 	$(hide) echo "Configuring kernel..."
 ifdef KERNEL_CONFIG_FRAGMENTS
-	PATH=/usr/bin:$$PATH $(KERNEL_SRC)/scripts/kconfig/merge_config.sh -m -O $(KERNEL_OUT)/.config $(KERNEL_BASE_CONFIG) $(KERNEL_CONFIG_FRAGMENTS)
+	PATH=/usr/bin:$$PATH $(KERNEL_SRC)/scripts/kconfig/merge_config.sh -m -O $(KERNEL_OUT) $(KERNEL_BASE_CONFIG) $(KERNEL_CONFIG_FRAGMENTS)
 else
 	cp $(KERNEL_BASE_CONFIG) $(KERNEL_OUT)/.config
 endif
 	$(KERNEL_CMAKE_CMD) olddefconfig
 
+$(KERNEL_BINARY): PRIVATE_KERNEL_OUT := $(PRODUCT_OUT)/kernel-$(KERNEL_VERSION)
 $(KERNEL_BINARY): $(KERNEL_CONFIG)
 	$(hide) echo "Building kernel..."
 	$(KERNEL_CMAKE_CMD) > $(OUT_DIR)/kernel_build.log 2>&1
+	$(hide) cp -v $@ $(PRIVATE_KERNEL_OUT)
+
+$(KERNEL_DTB_OUT): PRIVATE_DTB_OUT := $(PRODUCT_OUT)/$(notdir $(KERNEL_DTB))
+$(KERNEL_DTB_OUT): PRIVATE_DTS := $(patsubst %.dtb,%.dts,$(KERNEL_SRC)/arch/$(TARGET_ARCH)/boot/dts/$(KERNEL_DTB))
+$(KERNEL_DTB_OUT): $(KERNEL_CONFIG) $(PRIVATE_DTS)
+	$(hide) echo "Building dtb..."
+	$(KERNEL_CMAKE_CMD) $(KERNEL_DTB)
+	$(hide) cp -v $@ $(PRIVATE_DTB_OUT)
 
 .PHONY: kernelconfig
 kernelconfig: $(KERNEL_CONFIG)
 
 .PHONY: kernel
 kernel: $(KERNEL_BINARY)
+
+.PHONY: dtb
+dtb: $(KERNEL_DTB_OUT)
