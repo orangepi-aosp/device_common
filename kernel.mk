@@ -14,9 +14,19 @@
 
 TOP_ABS := $(realpath $(TOP))
 
-KERNEL_VERSION := 5.15
+ifndef KERNEL_VERSION
+$(error 'Missing KERNEL_VERSION')
+endif
+
+ifndef KERNEL_SRC
+$(error 'Missing KERNEL_SRC')
+endif
+
+ifndef KERNEL_DTB
+$(error 'Missing KERNEL_DTB')
+endif
+
 KERNEL_CROSS_COMPILE_PREFIX := $(TOP)/prebuilts/gcc/linux-x86/host/gcc-arm-11.2-2022.02-x86_64-aarch64-none-linux-gnu/bin/aarch64-none-linux-gnu-
-KERNEL_SRC := $(TOP)/kernel/android13-5.15-lts
 KERNEL_OUT := $(TARGET_OUT_INTERMEDIATES)/KERNEL_OBJ
 KERNEL_CONFIG := $(KERNEL_OUT)/.config
 KERNEL_BINARY := $(KERNEL_OUT)/arch/$(TARGET_ARCH)/boot/Image
