@@ -29,8 +29,10 @@ endif
 KERNEL_CROSS_COMPILE_PREFIX := $(TOP)/prebuilts/gcc/linux-x86/host/gcc-arm-11.2-2022.02-x86_64-aarch64-none-linux-gnu/bin/aarch64-none-linux-gnu-
 KERNEL_OUT := $(TARGET_OUT_INTERMEDIATES)/KERNEL_OBJ
 KERNEL_CONFIG := $(KERNEL_OUT)/.config
-KERNEL_BINARY := $(KERNEL_OUT)/arch/$(TARGET_ARCH)/boot/Image
-KERNEL_DTB_OUT := $(KERNEL_OUT)/arch/$(TARGET_ARCH)/boot/dts/$(KERNEL_DTB)
+
+# Artifacts
+KERNEL_BINARY_OUT := $(PRODUCT_OUT)/kernel-$(KERNEL_VERSION)
+KERNEL_DTB_OUT := $(TOP)/$(BOARD_PREBUILT_DTBIMAGE_DIR)/$(notdir $(KERNEL_DTB))
 
 KERNEL_BASE_CONFIG := $(TOP)/kernel/configs/android-$(KERNEL_VERSION)/android-base.config
 
@@ -52,24 +54,25 @@ else
 endif
 	$(KERNEL_CMAKE_CMD) olddefconfig
 
-$(KERNEL_BINARY): PRIVATE_KERNEL_OUT := $(PRODUCT_OUT)/kernel-$(KERNEL_VERSION)
-$(KERNEL_BINARY): $(KERNEL_CONFIG)
+$(KERNEL_BINARY_OUT): PRIVATE_BUILT_KERNEL_IMAGE := $(KERNEL_OUT)/arch/$(TARGET_ARCH)/boot/Image
+$(KERNEL_BINARY_OUT): $(KERNEL_CONFIG)
 	$(hide) echo "Building kernel..."
 	$(KERNEL_CMAKE_CMD) > $(OUT_DIR)/kernel_build.log 2>&1
-	$(hide) cp -v $@ $(PRIVATE_KERNEL_OUT)
+	$(hide) cp -v $(PRIVATE_BUILT_KERNEL_IMAGE) $@
 
 $(KERNEL_DTB_OUT): PRIVATE_DTS := $(patsubst %.dtb,%.dts,$(KERNEL_SRC)/arch/$(TARGET_ARCH)/boot/dts/$(KERNEL_DTB))
-$(KERNEL_DTB_OUT): $(KERNEL_BINARY) $(KERNEL_CONFIG) $(PRIVATE_DTS)
+$(KERNEL_DTB_OUT): PRIVATE_BUILT_DTB := $(KERNEL_OUT)/arch/$(TARGET_ARCH)/boot/dts/$(KERNEL_DTB)
+$(KERNEL_DTB_OUT): $(KERNEL_BINARY_OUT) $(KERNEL_CONFIG) $(PRIVATE_DTS)
 	$(hide) echo "Building dtb..."
 	$(KERNEL_CMAKE_CMD) $(KERNEL_DTB)
-	$(hide) mkdir -p $(TOP)/$(BOARD_PREBUILT_DTBIMAGE_DIR)
-	$(hide) cp -v $@ $(TOP)/$(BOARD_PREBUILT_DTBIMAGE_DIR)/$(notdir $(KERNEL_DTB))
+	$(hide) mkdir -p $(dir $@)
+	$(hide) cp -v $(PRIVATE_BUILT_DTB) $@
 
 .PHONY: kernelconfig
 kernelconfig: $(KERNEL_CONFIG)
 
 .PHONY: kernel
-kernel: $(KERNEL_BINARY)
+kernel: $(KERNEL_BINARY_OUT)
 
 .PHONY: dtb
 dtb: $(KERNEL_DTB_OUT)
